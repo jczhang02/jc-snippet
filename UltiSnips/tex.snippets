@@ -1,0 +1,664 @@
+global !p
+
+import re
+
+
+def math():
+	return vim.eval('vimtex#syntax#in_mathzone()') == '1'
+
+
+def environment(default_envname = None, lastemptyline = False):
+	currentlinenumber = int(vim.eval("line('.')"))
+	if lastemptyline and vim.eval("getline(%d)" % currentlinenumber).strip() != "":
+		return ""
+	for index in range(currentlinenumber - 1, 0, -1):
+		if vim.eval("getline(%d)" % index).endswith("\\\\"):
+			continue
+		else:
+			ob = re.fullmatch(r".*\\begin{(\w+\*?)}({\w+})?(\[\w+\])?", vim.eval("getline(%d)" % index))
+			if ob:
+				env_name = ob.group(1)
+				break
+			else:
+				return ""
+	else:
+		return ""
+	for index in range(currentlinenumber + 1, (int(vim.eval("line('$')")) if not lastemptyline else (currentlinenumber + 1)) + 1):
+		if vim.eval("getline(%d)" % index).endswith("\\\\"):
+			continue
+		ob = re.fullmatch(r".*\\end{(\w+\*?)}", vim.eval("getline(%d)" % index))
+		if ob:
+			if env_name == ob.group(1):
+				if default_envname is None:
+					return env_name
+				else:
+					return env_name == default_envname
+			else:
+				return ""
+		else:
+			return ""
+	else:
+		return ""
+
+def extract_operator(line):
+	line = line.strip()
+	if line[0] in ["=", "<", ">"]:
+		return line[0]
+	elif line[0] != "\\":
+		return ""
+	else:
+		if not line[1].isalpha():
+			return ""
+		rv = "\\" + re.fullmatch("([a-zA-Z]+)([^a-zA-Z].*)", line[1:]).group(1)
+		remain = re.fullmatch("([a-zA-Z]+)([^a-zA-Z].*)", line[1:]).group(2)
+		if remain and remain[0] == "{":
+			index = 0
+			depth = 0
+			while index < len(remain):
+				if remain[index] == "{":
+					depth += 1
+					index += 1
+					continue
+				elif remain[index] == "}":
+					depth -= 1
+					index += 1
+					if depth == 0:
+						rv += remain[:index]
+						break
+					continue
+				elif remain[index] == "\\":
+					index += 2
+					continue
+				else:
+					index += 1
+					continue
+		return rv
+
+
+def findmatched_parentheses(line, lindex):
+	depth = 0
+	matched = {"(":")", ")":"(", "[":"]", "]":"[", "{":"}", "}":"{"}
+	c = line[lindex]
+	d = matched[c]
+	if line[lindex] in ["(", "[", "{"]:
+		for index in range(lindex, len(line)):
+			if line[index] == c:
+				depth += 1
+			elif line[index] == d:
+				depth -= 1
+			if depth == 0:
+				return index
+	elif line[lindex] in [")", "]", "}"]:
+		for index in range(lindex, -1, -1):
+			if line[index] == c:
+				depth += 1
+			elif line[index] == d:
+				depth -= 1
+			if depth == 0:
+				return index
+	return -1
+
+
+def add_placeholder(snip):
+	info = snip.buffer[snip.line]
+	snip.buffer[snip.line] = ''
+	# print(info)
+	snip.expand_anon(info)
+
+def add_package(packagename):
+	if packagename == "pgfplots" and vim.eval("search('\\\\usepackage{pgfplots}', 'n')") == '0':
+		try:
+			first = int(vim.eval("search('\\\\usepackage', 'n')"))
+			if first == 0:
+				first = int(vim.eval("search('\\documentclass', 'n')"))
+			else:
+				first -= 1
+		except:
+			first = 0
+		snip.buffer[first:first] = ['\\pgfplotsset{compat=1.16}']
+		snip.buffer[first:first] = ['\\usepackage{pgfplots}']
+
+def generate_matrix(prefix, snip):
+	info = snip.buffer[snip.line]
+	spacelen = len(info) - len(info.lstrip())
+	linfo = info[:snip.snippet_start[1]]
+	rinfo = info[snip.snippet_end[1]:]
+	info = info[snip.snippet_start[1]:snip.snippet_end[1]]
+	# print([linfo, rinfo, info])
+	if len(info) > 1 and info[1].isnumeric():
+		real_shape = info[:2]
+		virtual_shape = info[2:]
+	else:
+		real_shape = info[0]
+		virtual_shape = info[1:]
+	if len(real_shape) == 1:
+		row_amount = int(real_shape)
+		column_amount = int(real_shape)
+	else:
+		row_amount = int(real_shape[0])
+		column_amount = int(real_shape[1])
+	if len(virtual_shape) == 0:
+		virtual_row_amount = "0"
+		virtual_column_amount = "0"
+	elif len(virtual_shape) == 1:
+		virtual_row_amount = virtual_shape[0]
+		virtual_column_amount = virtual_shape[0]
+	else:
+		virtual_row_amount = virtual_shape[0]
+		virtual_column_amount = virtual_shape[1]
+	snip.buffer[snip.line] = ''
+	displayed = re.sub(r"\\", r"\\\\", linfo) + "\\begin{%cmatrix}\n" % prefix
+	def generate_code(i, j, row, column, virtual_row, virtual_column):
+		if i == 1 and j == 1:
+			return ""
+		else:
+			code = """`!p
+from snippet_helpers import generate_matrix_element
+snip.rv = generate_matrix_element(%d, %d, %d, %d, '%c', '%c', [%s], [%s])
+`""" % (i, j, row, column, virtual_row, virtual_column, "''," + ",".join("t[%d]" % x for x in range(1, j+1)), "''," + ",".join("t[%d]" % (1 + column * (x-1)) for x in range(1, i+1)))
+		return code
+	if row_amount > 0 and column_amount > 0:
+		displayed += " " * (4 + len(linfo)) + "$1\t" + ("& " if column_amount > 1 else "\\" * 4)
+		index = 2
+		for i in range(2, column_amount + 1):
+			displayed += "${" + "{}".format(index) + ":" + generate_code(1, i, row_amount, column_amount, virtual_row_amount, virtual_column_amount) + "}\t" + ("& " if i < column_amount else "\\" * 4)
+			index += 1
+		displayed += "\n"
+		for j in range(2, row_amount + 1):
+			displayed += " " * (4 + len(linfo))
+			for i in range(1, column_amount + 1):
+				displayed += "${" + "{}".format(index) + ":" + generate_code(j, i, row_amount, column_amount, virtual_row_amount, virtual_column_amount) + "}\t" + ("& " if i < column_amount else "\\" * 4)
+				index += 1
+			displayed += "\n"
+	displayed += " " * len(linfo) + "\\end{%cmatrix}$0" % prefix + (" " + re.sub(r"\\", r"\\\\", rinfo) if rinfo else "")
+	snip.expand_anon(displayed)
+
+def complete(input_str, candidate):
+	candidate = [x[len(input_str):] for x in candidate if x.startswith(input_str)]
+	if len(candidate) == 1:
+		return candidate[0]
+	elif "" in candidate:
+		return ""
+	elif candidate:
+		return "(" + "|".join(candidate) + ")"
+	else:
+		return ""
+endglobal
+
+extends mathtex
+
+snippet template(basic) "Basic template" b
+%!TeX program = xelatex
+
+\documentclass{article}
+
+% \usepackage[UTF8, heading]{ctex}
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
+\usepackage{amsmath}
+\usepackage{mathrsfs}
+\usepackage{amsfonts}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{listings}
+
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\usepackage{lstautogobble}  % Fix relative indenting
+\usepackage{zi4}            % Nice font
+\renewcommand{\lstlistingname}{Source Code}% Listing -> Algorithm
+\renewcommand{\lstlistlistingname}{List of \lstlistingname s}% List of Listings -> List of Algorithms
+
+\definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
+\definecolor{greencomments}{rgb}{0, 0.5, 0}
+\definecolor{redstrings}{rgb}{0.9, 0, 0}
+\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
+\lstset{
+    language=c,
+    autogobble,
+    columns=fullflexible,
+    showspaces=false,
+    showtabs=false,
+    breaklines=true,
+    showstringspaces=false,
+    breakatwhitespace=true,
+    escapeinside={(*@}{@*)},
+    commentstyle=\color{greencomments},
+    keywordstyle=\color{bluekeywords},
+    stringstyle=\color{redstrings},
+    numberstyle=\color{graynumbers},
+    basicstyle=\ttfamily\footnotesize,
+    frameround = fttt,
+    frame=trBL,
+    framesep=12pt,
+    xleftmargin=12pt,
+    tabsize=4,
+}
+
+\geometry{left = 3cm, right = 3cm, top = 3cm, bottom = 3cm}
+
+\usepackage{amsthm}
+\newtheorem{example}{Example}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{definition}{Definition}
+\newtheorem{axiom}{Axiom}
+\newtheorem{property}{Property}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+\newtheorem{condition}{Condition}
+\newtheorem{conclusion}{Conclusion}
+
+
+
+\begin{document}
+	$0
+\end{document}
+endsnippet
+
+snippet template(slide) "template for slike" b
+%!TeX program = xelatex
+\documentclass{beamer}
+
+\usepackage[UTF8, noindent, heading]{ctex}
+\usepackage{awesomebox}
+% \usepackage{listings}
+
+% \usepackage{color}
+
+% \definecolor{dkgreen}{rgb}{0,0.6,0}
+% \definecolor{gray}{rgb}{0.5,0.5,0.5}
+% \definecolor{mauve}{rgb}{0.58,0,0.82}
+
+% \lstset{frame=tb,
+%   language=Python,
+%   aboveskip=3mm,
+%   belowskip=3mm,
+%   showstringspaces=false,
+%   columns=flexible,
+%   basicstyle={\small\ttfamily},
+%   numbers=none,
+%   numberstyle=\tiny\color{gray},
+%   keywordstyle=\color{blue},
+%   commentstyle=\color{dkgreen},
+%   stringstyle=\color{mauve},
+%   breaklines=true,
+%   breakatwhitespace=true,
+%   tabsize=3
+% }
+
+\mode<presentation> {
+
+% The Beamer class comes with a number of default slide themes
+% which change the colors and layouts of slides. Below this is a list
+% of all the themes, uncomment each in turn to see what they look like.
+
+%\usetheme{default}
+%\usetheme{AnnArbor}
+%\usetheme{Antibes}
+%\usetheme{Bergen}
+%\usetheme{Berkeley}
+%\usetheme{Berlin}
+%\usetheme{Boadilla}
+%\usetheme{CambridgeUS}
+%\usetheme{Copenhagen}
+%\usetheme{Darmstadt}
+%\usetheme{Dresden}
+%\usetheme{Frankfurt}
+%\usetheme{Goettingen}
+%\usetheme{Hannover}
+%\usetheme{Ilmenau}
+%\usetheme{JuanLesPins}
+%\usetheme{Luebeck}
+\usetheme{Madrid}
+%\usetheme{Malmoe}
+%\usetheme{Marburg}
+%\usetheme{Montpellier}
+%\usetheme{PaloAlto}
+%\usetheme{Pittsburgh}
+%\usetheme{Rochester}
+%\usetheme{Singapore}
+%\usetheme{Szeged}
+%\usetheme{Warsaw}
+
+% As well as themes, the Beamer class has a number of color themes
+% for any slide theme. Uncomment each of these in turn to see how it
+% changes the colors of your current slide theme.
+
+%\usecolortheme{albatross}
+%\usecolortheme{beaver}
+%\usecolortheme{beetle}
+%\usecolortheme{crane}
+%\usecolortheme{dolphin}
+%\usecolortheme{dove}
+%\usecolortheme{fly}
+%\usecolortheme{lily}
+%\usecolortheme{orchid}
+%\usecolortheme{rose}
+%\usecolortheme{seagull}
+%\usecolortheme{seahorse}
+%\usecolortheme{whale}
+%\usecolortheme{wolverine}
+
+%\setbeamertemplate{footline} % To remove the footer line in all slides uncomment this line
+\setbeamertemplate{footline}[page number] % To replace the footer line in all slides with a simple slide count uncomment this line
+
+\setbeamertemplate{navigation symbols}{} % To remove the navigation symbols from the bottom of all slides uncomment this line
+}
+
+\usepackage{graphicx} % Allows including images
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
+%\usepackage {tikz}
+\usepackage{tkz-graph}
+
+\GraphInit[vstyle = Shade]
+\tikzset{
+  LabelStyle/.style = { rectangle, rounded corners, draw,
+                        minimum width = 2em, fill = yellow!50,
+                        text = red, font = \bfseries },
+  VertexStyle/.append style = { inner sep=5pt,
+                                font = \normalsize\bfseries},
+  EdgeStyle/.append style = {->, bend left} }
+\usetikzlibrary {positioning}
+%\usepackage {xcolor}
+\definecolor {processblue}{cmyk}{0.96,0,0,0}
+%----------------------------------------------------------------------------------------
+%	TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+$0
+\end{document}
+endsnippet
+
+
+snippet table "Table environment" b
+\begin{table}[${1:htpb}]
+	\centering
+	\caption{${2:caption}}
+	\label{tab:${3:label}}
+	\begin{tabular}{${5:c}}
+	$0${5/((?<=.)c|l|r)|./(?1: & )/g}
+	\end{tabular}
+\end{table}
+endsnippet
+
+snippet fig "Figure environment" b
+\begin{figure}[${1:htpb}]
+	\centering
+	${2:\includegraphics[width=0.8\textwidth]{$3}}
+	\caption{${4:$3}}
+	\label{fig:${5:${3/\W+/-/g}}}
+\end{figure}
+endsnippet
+
+snippet examp "Example Block" b
+\begin{testexample}
+		$0
+\end{testexample}
+endsnippet
+
+snippet prop "Prositation" b
+\begin{prop}
+		$0
+\end{prop}
+endsnippet
+
+snippet lemma "Lemma" b
+\begin{lemma}
+		$0
+\end{lemma}
+endsnippet
+
+snippet coll "COll" b
+\begin{corollary}
+		$0
+\end{corollary}
+endsnippet
+
+snippet problem "problem" w
+\begin{problem}
+	$0
+\end{problem}
+endsnippet
+
+snippet "enum" "Enumerate" brA
+\begin{enumerate}
+	\item $0
+\end{enumerate}
+endsnippet
+
+snippet item "Itemize" bA
+\begin{itemize}
+	\item $0
+\end{itemize}
+endsnippet
+
+snippet desc "Description" b
+\begin{description}
+	\item[$1] $0
+\end{description}
+endsnippet
+
+snippet pac "Package" b
+\usepackage[${1:options}]{${2:package}}$0
+endsnippet
+
+
+snippet dm "Math" wA
+\[
+	${1:${VISUAL}}
+\]
+endsnippet
+
+# add comma and period \]. -> .\] and \], -> ,\]
+# replace comma and period ,\]. -> .\]
+# support space between \]  , -> ,\]
+snippet "([,\.]*)\\]\s*([,\.])" "Add ',' '.' for display math" rA
+`!p snip.rv=match.group(2)`\\]
+endsnippet
+
+
+
+snippet plot "Plot" w
+\begin{figure}[$1]
+	\centering
+	\begin{tikzpicture}
+		\begin{axis}[
+			xmin= ${2:-10}, xmax= ${3:10},
+			ymin= ${4:-10}, ymax = ${5:10},
+			axis lines = middle,
+		]
+			\addplot[domain=$2:$3, samples=${6:100}]{$7};
+		\end{axis}
+	\end{tikzpicture}
+	\caption{$8}
+	\label{${9:$8}}
+\end{figure}
+endsnippet
+
+snippet nn "Tikz node" w
+\node[$5] (${1/[^0-9a-zA-Z]//g}${2}) ${3:at (${4:0,0}) }{$${1}$};
+$0
+endsnippet
+
+post_jump "add_placeholder(snip)"
+context "environment(lastemptyline = True)"
+snippet "^(\s+)" "auto insert something" wr
+`!p
+snip.rv = match.group(1)
+env_name = environment()
+line_number = int(vim.eval("line('.')"))
+last_line = vim.eval("getline(%d)" % (line_number-1))
+if any(env_name.startswith(x) for x in ["ali", "split"]):
+	try:
+		last_operator = extract_operator(re.fullmatch(r"[^&]*&(.*)", last_line).group(1))
+	except:
+		last_operator = ""
+	if last_line.split("&")[0].strip():
+		snip.rv += "$2 & ${1:%s} $3 \\\\\\\\" % last_operator
+	else:
+		snip.rv += "& ${1:%s} $3 \\\\\\\\" % last_operator
+elif re.search("matrix", env_name):
+	number = last_line.count("&") + 1
+	snip.rv += " & ".join("$%d" % x for x in range(1, number+1)) + "\\" * 4
+elif env_name == "enumerate":
+	snip.rv = " " * (len(last_line) - len(last_line.lstrip())) + "\item $1"
+`
+endsnippet
+
+post_expand "add_package('pgfplots')"
+# (\s*,\s*\[([+\-]?\d+\.?\d*)\s*,\s*([+\-]?\d+\.?\d*)\])\s*
+snippet "tplot\(([\da-zA-Z\s+\-*/\(\),\^]+)\)" "plot function" wr
+\begin{figure}
+\centering
+\begin{tikzpicture}
+\begin{axis}[samples=500,domain= ${1:-pi} : ${2:${1/-//g}} ,restrict y to domain = ${3:$1} : ${4:${3/-//g}}]
+\addplot[${5:blue}] plot ({\x},{`!p
+expression = match.group(1)
+expression = re.sub("(?<=\d)x", "*x", expression)
+expression = re.sub("(?<![a-zA-Z])x(?![a-zA-Z])", r"\\x", expression)
+pindexs = sorted([findmatched_parentheses(expression, x.span()[1]) for x in re.finditer(r"\bsin\b", expression)])
+expression = " r".join([expression[x:y] for x, y in zip([0] + pindexs, pindexs + [len(expression)])])
+expression = "max(min(%s, %s), %s)" % (expression, t[4], t[3])
+snip.rv = expression
+`});
+\end{axis}
+\end{tikzpicture}
+\end{figure}$0
+endsnippet
+
+post_expand "add_package('pgfplots')"
+snippet "addplot\(([\da-zA-Z\s+\-*/\(\),\^]+)\)" "add another function" wr
+\addplot[${1:`!p
+if not snip.c:
+	color = ['blue', 'red', 'yellow', 'orange', 'green', 'magenta']
+	usedcolor = []
+	for index in range(int(vim.eval("line('.')"))-1, 0, -1):
+		cline = vim.eval("getline(%d)" % index)
+		# print(index, cline)
+		ob = re.match(r"\\addplot\[([a-zA-Z]+)", cline)
+		if ob:
+			usedcolor.append(ob.group(1))
+		else:
+			break
+	notused = [x for x in color if x not in usedcolor]
+	if notused:
+		snip.rv = notused[0]
+	else:
+		snip.rv = "blue"
+`}] plot ({\x},{`!p
+expression = match.group(1)
+expression = re.sub("(?<=\d)x", "*x", expression)
+expression = re.sub("(?<![a-zA-Z])x(?![a-zA-Z])", r"\\x", expression)
+pindexs = sorted([findmatched_parentheses(expression, x.span()[1]) for x in re.finditer(r"\bsin\b", expression)])
+expression = " r".join([expression[x:y] for x, y in zip([0] + pindexs, pindexs + [len(expression)])])
+line_number = int(vim.eval("line('.')"))
+index = 1
+last_line = ""
+while index < line_number:
+	last_line = vim.eval("getline(%d)" % (line_number-index))
+	index += 1
+	ob = re.fullmatch(r".*,\s*([\w+\-.]+)\),\s*([\w+\-.]+)\)\}\);", last_line)
+	if ob:
+		break
+expression = "max(min(%s, %s), %s)" % (expression, ob.group(1), ob.group(2))
+snip.rv = expression
+`});$0
+endsnippet
+
+snippet define "definition" b
+\begin{definition}[$1]
+	$0
+\end{definition}
+endsnippet
+
+snippet lemma "lemma" b
+\begin{lemma}
+	$0
+\end{lemma}
+endsnippet
+
+snippet problem "problem" b
+\begin{problem}
+	$0
+\end{problem}
+endsnippet
+
+snippet remark "remark" b
+\begin{remark}
+	$0
+\end{remark}
+endsnippet
+
+snippet examp "exampblock" b
+\begin{testexample}
+	$0
+\end{testexample}
+endsnippet
+
+snippet prop "prop" b
+\begin{proposition}
+	$0
+\end{proposition}
+endsnippet
+
+snippet theorem "theorem" b
+\begin{theorem}
+	$0
+\end{theorem}
+endsnippet
+
+snippet coroll "corollary" b
+\begin{corollary}
+	$0
+\end{corollary}
+endsnippet
+
+snippet colorblue "color blue" b
+\usepackage{xcolor}
+
+\makeatletter
+\newcommand{\globalcolor}[1]{%
+  \color{#1}\global\let\default@color\current@color
+}
+\makeatother
+
+\AtBeginDocument{\globalcolor{blue}}
+endsnippet
+
+snippet template? "What kind of template" b
+template($1`!p
+snip.rv = complete(t[1], ['basic', 'slide'])
+`)$0
+endsnippet
+
+snippet frame "frame of slide" b
+\begin{frame}{$1}
+$0
+\end{frame}
+endsnippet
+
+######################
+## correct typing
+######################
+context "not math()"
+snippet I. "I\@." wA
+I\@.
+endsnippet
+
+# 'x  ' .   -> 'x '
+# \S to avoid this snippet at the start of line
+context "not math()"
+snippet "(?<=\S)\s{2,}" "remove double spaces" iwrA
+
+endsnippet
+
+# vim: ts=2 sw=2 noet:list:ft=snippets:

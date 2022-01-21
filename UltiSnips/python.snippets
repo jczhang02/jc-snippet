@@ -1,0 +1,565 @@
+global !p
+import re
+
+def start_of_object(stripped):
+	"""
+	@type stripped: str
+
+	--------
+	get the start position of the last token in stripped:
+	for example:
+	input:
+	start_of_object("    return f([1,2,3])")
+	will give 11
+	"""
+	i = len(stripped) - 1
+	depth = 0
+	instringsingle = False
+	instringdouble = False
+	while i >= 0:
+		if not instringsingle and not instringdouble:
+			if stripped[i] in [')', ']', '}']:
+				depth += 1
+				i-=1
+				continue
+			if stripped[i] in ['(', '[', '{']:
+				depth -= 1
+				if depth < 0:
+					break
+				i-=1
+				continue
+			if stripped[i] == '"':
+				instringdouble = True
+				i-=1
+				continue
+			if stripped[i] == '\'':
+				instringsingle = True
+				i-=1
+				continue
+			if stripped[i] in [' ', '+', '-', '*', '/', '=', ':', ',', '&', '>', '<'] and depth == 0:
+				break
+		elif instringsingle:
+			if stripped[i] == '\'' and (i == 0 or stripped[i-1] != '\\'):
+				instringsingle = False
+				i-=1
+				continue
+		else:
+			if stripped[i] == '"' and (i == 0 or stripped[i-1] != '\\'):
+				instringdouble = False
+				i-=1
+				continue
+		i-=1
+	return i + 1
+
+def end_of_object(stripped):
+	i = 0
+	depth = 0
+	instringsingle = False
+	instringdouble = False
+	while i < len(stripped):
+		if not instringsingle and not instringdouble:
+			if stripped[i] in ["(", "[", "{"]:
+				depth += 1
+				i += 1
+				continue
+			if stripped[i] in [")", "]", "}"]:
+				depth -= 1
+				if depth < 0:
+					break
+				i += 1
+				continue
+			if stripped[i] == '"':
+				instringdouble = True
+				i += 1
+				continue
+			if stripped[i] == '\'':
+				instringsingle = True
+				i += 1
+				continue
+			if stripped[i] in [' ', '+', '-', '*', '/', '=', ':', ',', '&', '>', '<'] and depth == 0:
+				break
+		elif instringsingle:
+			if stripped[i] == '\\':
+				i += 2
+				continue
+			if stripped[i] == '\'':
+				instringsingle = False
+				i += 1
+				continue
+		else:
+			if stripped[i] == '\\':
+				i += 2
+				continue
+			if stripped[i] == '"':
+				instringdouble = False
+				i += 1
+				continue
+		i += 1
+	return min(i, len(stripped))
+
+def start_of_expression(stripped):
+	i = len(stripped) - 1
+	depth = 0
+	instringsingle = False
+	instringdouble = False
+	flagspace = False
+	while i >= 0:
+		if not instringsingle and not instringdouble:
+			if stripped[i] in [')', ']', '}']:
+				depth += 1
+				i-=1
+				continue
+			if stripped[i] in ['(', '[', '{']:
+				depth -= 1
+				if depth < 0:
+					break
+				i-=1
+				continue
+			if stripped[i] == '"':
+				instringdouble = True
+				i-=1
+				continue
+			if stripped[i] == '\'':
+				instringsingle = True
+				i-=1
+				continue
+			if stripped[i] == ' ':
+				if not stripped[:i].strip():
+					break
+				if not stripped[i:].strip():
+					i-=1
+					continue
+				before = (stripped[:i].split())[-1]
+				after = (stripped[i+1:].split())[0]
+				if before in ['in', 'is', 'not', 'and', 'or']:
+					i-=1
+					continue
+				if after in ['in', 'is', 'not', 'and', 'or']:
+					i-=1
+					continue
+				if re.fullmatch("\w", before[-1]) and re.fullmatch("[\w\(\[{]", after[0]):
+					break
+				i-=1
+				continue
+			i-=1
+			continue
+		elif instringsingle:
+			if stripped[i] == '\'' and (i == 0 or stripped[i-1] != '\\'):
+				instringsingle = False
+				i-=1
+				continue
+		else:
+			if stripped[i] == '"' and (i == 0 or stripped[i-1] != '\\'):
+				instringdouble = False
+				i-=1
+				continue
+		i-=1
+	return i + 1
+
+def has_package(name="numpy"):
+	if vim.eval("search('import %s', 'n')" % name) != '0':
+		return True
+	else:
+		return False
+
+def notstring():
+	currentline = vim.eval("getline('.')")
+	currentline = currentline[0:int(vim.eval("col('.')"))-1]
+	# print(currentline)
+	i = 0
+	singlequote = False
+	doublequote = False
+	if '"' not in currentline and "'" not in currentline:
+		return True
+	while i < len(currentline):
+		if not singlequote and not doublequote:
+			if currentline[i] == "'":
+				singlequote = True
+			if currentline[i] == '"':
+				doublequote = True
+		elif singlequote:
+			if currentline[i] == '\\':
+				i+=2
+				continue
+			if currentline[i] == "'":
+				singlequote = False
+		else:
+			if currentline[i] == '\\':
+				i+=2
+				continue
+			if currentline[i] == "\"":
+				doublequote = False
+		# print(i, currentline[i], singlequote)
+		i+=1
+	return not singlequote and not doublequote
+
+def head_writer(head_check, head_content, location="import", last = False, bias = 1):
+	# Usage:
+		# post_expand "head_writer('import numpy', ['import numpy as np'], bias = 0)"
+		# snippet "test" "this is a test" wr
+		# endsnippet
+	if vim.eval("search('%s', 'n')" % head_check) == "0":
+		loc = int(vim.eval("search('%s', 'n')" % location if not last else "search('%s', 'nb')" % location))
+		snip.buffer[max(loc+bias, 0):max(loc+bias, 0)] = head_content
+
+def complete(input_str, candidate):
+	candidate = [x[len(input_str):] for x in candidate if x.startswith(input_str)]
+	if len(candidate) == 1:
+		return candidate[0]
+	elif "" in candidate:
+		return ""
+	elif candidate:
+		return "(" + "|".join(candidate) + ")"
+	else:
+		return ""
+endglobal
+
+
+# priority 1000
+# context "notstring()"
+# snippet '^.*[\w\)\]}"\']/FF' "filter" wrA
+# `!p
+# stripped = match.string[:-3]
+# i = start_of_object(stripped)
+# snip.rv = stripped[0:i] + "filter(lambda "
+# `${1:x}: $1 $2, `!p
+# stripped = match.string[:-3]
+# i = start_of_object(stripped)
+# snip.rv = stripped[i:-1] + ")"
+# `
+# endsnippet
+
+# priority 1000
+# context "notstring()"
+# snippet '^.*[\w\)\]}"\']/\]' "list comprehension" wrA
+# `!p
+# stripped = match.string[:-2]
+# i = start_of_object(stripped)
+# snip.rv = stripped[0:i] + "["
+# `$2 for $1 in `!p
+# stripped = match.string[:-2]
+# i = start_of_object(stripped)
+# snip.rv = stripped[i:]
+# `]$0
+# endsnippet
+
+# priority 2000
+# context "notstring()"
+# snippet '^(.*[\w\)\]}"\'])/index\]' "list comprehension" wrA
+# `!p
+# stripped = match.group(1)
+# i = start_of_object(stripped)
+# snip.rv = stripped[0:i] + "["
+# `index for index, ${1:x} in enumerate(`!p
+# stripped = match.group(1)
+# i = start_of_object(stripped)
+# snip.rv = stripped[i:]
+# `) if $2]$0
+# endsnippet
+
+# priority 1000
+# context "notstring()"
+# snippet '(^.*[\w\)\]}"\'])/([a-zA-Z][\w.]*|[\w^+\-*/\(\).]+)\]' "list comprehension" wrA
+# `!p
+# import re
+# stripped = match.group(1)
+# i = start_of_object(stripped)
+# funname = match.group(2)
+# snip.rv = stripped[0:i] + "["
+# if re.fullmatch("[a-zA-Z][\w.]+", funname):
+# 	snip.rv += funname + "(x)"
+# else:
+# 	snip.rv += funname
+# snip.rv += " for x in " + stripped[i:] + "]"
+# `
+# endsnippet
+
+# Example:
+# object/,
+# -> f(object, )
+priority 1000
+context "notstring()"
+snippet '^.*[\w\)\]}"\']/,' "apply function" wrA
+`!p
+stripped = match.string[:-2]
+i = start_of_object(stripped)
+snip.rv = stripped[0:i]
+`${1:f}(`!p
+stripped = match.string[:-2]
+i = start_of_object(stripped)
+snip.rv = stripped[i:]
+`, $2)$0
+endsnippet
+
+# Example:
+priority 1000
+context "notstring()"
+snippet '^(.*[\w\)\]}"\'])//' "apply single value function" wrA
+`!p
+stripped = match.group(1)
+i = start_of_object(stripped)
+snip.rv = stripped[0:i]
+`${1:f}(`!p
+stripped = match.group(1)
+i = start_of_object(stripped)
+snip.rv = stripped[i:]
+`)$0
+endsnippet
+
+# Example:
+# object/func,
+# -> func(object, )
+priority 1000
+context "notstring()"
+snippet '^(.*[\w\)\]}"\'])/([a-zA-Z][\w\.]*),' "apply function" wrA
+`!p
+stripped = match.group(1)
+i = start_of_object(stripped)
+snip.rv = stripped[0:i] + match.group(2) + "(" + stripped[i:] + ", "
+`$1)
+endsnippet
+
+priority 1000
+context "notstring()"
+snippet '^(.*[\w\)\]}"\']\))([a-zA-Z][\w\.]*),' "apply function" wrA
+`!p
+stripped = match.group(1)
+i = start_of_object(stripped)
+snip.rv = stripped[0:i] + match.group(2) + "(" + stripped[i:] + ", "
+`$1)
+endsnippet
+
+priority 1000
+context "notstring()"
+snippet '^(.*[\w\)\]}"\'])/([a-zA-Z][\w\.]*)/' "apply single value function" wrA
+`!p
+stripped = match.group(1)
+i = start_of_object(stripped)
+if match.group(2) == "touch":
+	snip.rv = stripped[0:i] + match.group(2) + "(lambda: " + stripped[i:] + ")"
+else:
+	snip.rv = stripped[0:i] + match.group(2) + "(" + stripped[i:] + ")"
+`
+endsnippet
+
+priority 1000
+context "notstring()"
+snippet '^(.*[\w\)\]}"\'\(]\))([a-zA-Z][\w\.]*)/' "apply single value function" wrA
+`!p
+stripped = match.group(1)
+i = start_of_object(stripped)
+snip.rv = stripped[0:i] + match.group(2) + "(" + stripped[i:] + ")"
+`
+endsnippet
+
+context "has_package('numpy')"
+snippet npz "np.zeros" wA
+np.zeros([$1], dtype=${2:float})
+endsnippet
+
+context "has_package('numpy')"
+snippet np* "np.dot" wA
+np.dot
+endsnippet
+
+context "notstring()"
+snippet '(?<![a-zA-Z])(\d+)([a-zA-Z])' "2x" wr
+`!p snip.rv=match.group(1)`*`!p snip.rv=match.group(2)`
+endsnippet
+
+priority 10000
+snippet '(for|while)\s+([a-zA-Z]\w*)\s*=' "for loop = -> for in" wrA
+`!p snip.rv=match.group(1) + " " + match.group(2)` in
+endsnippet
+
+priority 1000
+snippet "\braw_reg\((.*)\)" "raw regrex string" wr
+`!p
+regrex_string = match.group(1)
+regrex_string = re.sub('"', r'\"', regrex_string)
+regrex_string = re.sub('\'', r'\'', regrex_string)
+snip.rv = 'r"' + regrex_string + '"'
+`
+endsnippet
+
+priority 900
+snippet "\breg\((.*)\)" "regrex string" wr
+`!p
+regrex_string = match.group(1)
+regrex_string = re.sub(r'\\', r'\\\\', regrex_string)
+regrex_string = re.sub('"', r'\"', regrex_string)
+regrex_string = re.sub('\'', r'\'', regrex_string)
+snip.rv = '"' + regrex_string + '"'
+`
+endsnippet
+
+context "notstring()"
+priority 1
+snippet '^(.*[\w\)\]])\?' "? expression" wr
+`!p
+stripped = match.group(1)
+i = start_of_expression(stripped)
+snip.rv = stripped[0:i]
+`$1 if `!p
+stripped = match.group(1)
+i = start_of_expression(stripped)
+snip.rv = stripped[i:]
+` else $2
+endsnippet
+
+priority 200
+snippet '(-?\d+.?\d*):(-?\d+.?\d*):(-?\d+.?\d*)' "range of number" wr
+`!p
+start = float(match.group(1))
+end = float(match.group(3))
+step = float(match.group(2))
+length = int(abs(start - end) / abs(step)) + 1
+snip.rv = "[{} + {} * i for i in range({})]".format(start, step, length)
+`
+endsnippet
+
+priority 100
+snippet '(-?\d+):(-?\d+)' "range of number" wr
+`!p
+start = int(match.group(1))
+end = int(match.group(2))
+snip.rv = "range({}, {})".format(start, end + 1)
+`
+endsnippet
+
+priority 10
+snippet '^\s*@(\w+)>(\w+)' "substitute the above line" wr
+`!p
+previous_line = vim.eval("getline(line('.') - 1)")
+snip.rv = previous_line.replace(match.group(1), match.group(2))
+`
+endsnippet
+
+priority 20
+snippet '^\s*@(\d+)>(\w+)>(\w+)' "substitute the above line" wr
+`!p
+previous_line = vim.eval("getline(" + match.group(1) + ")")
+snip.rv = previous_line.replace(match.group(2), match.group(3))
+`
+endsnippet
+
+# For Logging
+# CRITICAL	50
+# ERROR	40
+# WARNING	30
+# INFO	20
+# DEBUG	10
+snippet logpreset "Preset of Logging" bA
+import logging
+logging.basicConfig(format='%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s', level=logging.${1:DEBUG})
+endsnippet
+
+post_expand "head_writer('import logging', ['import logging', 'logging.basicConfig(format=\'%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s\', level=logging.DEBUG)'], bias = 0)"
+snippet "log([1-5])" "" rbA
+logging.`!p
+loglevel = int(match.group(1))
+if loglevel == 1:
+	snip.rv = "debug"
+elif loglevel == 2:
+	snip.rv = "info"
+elif loglevel == 3:
+	snip.rv = "warning"
+elif loglevel == 4:
+	snip.rv = "error"
+else:
+	snip.rv = "critical"
+`($1)$0
+endsnippet
+
+snippet matlabmat "matrix from MatLab" w
+`!p
+matdata = snip.v.text
+matdata = [x.split() for x in matdata.split('\n') if x]
+matdata = ["[" + ",".join(x) + "]" for x in matdata]
+matdata = "np.array([" + ",\n".join(matdata) + "])"
+snip.rv = matdata
+`
+endsnippet
+
+# For PyTorch
+
+snippet "(py)?torchhead" "import pytorch" br
+import torch
+import torch.nn as nn
+`!p
+if not snip.c:
+	if vim.eval('search("import numpy", "n")') == "0":
+		snip.rv = "import numpy as np"
+	else:
+		snip.rv = ""
+`
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+endsnippet
+
+snippet "(print|log)\(loss\)" "print loss" wr
+`!p
+if match.group(1) == "print":
+	snip.rv += "print("
+else:
+	snip.rv += "logging.info("
+`'epoch [{}/{}], step [{}/{}], loss: {:.4f}'.format(${1:epoch}, ${2:total epoch}, ${3:step}, ${4:total steps}, ${5:loss})$0
+endsnippet
+
+snippet "(print|log)\(error\)" "print loss" br
+`!p
+if match.group(1) == "print":
+	snip.rv += "print("
+else:
+	snip.rv += "logging.error("
+`'line [`!p snip.rv = vim.eval("line('.')")`], ERROR: $1')$0
+endsnippet
+
+snippet "(print|log)\(info\)" "print information" br
+print("line [`!p if not snip.c: snip.rv = vim.eval("line('.')")`] `!p
+info = t[1]
+info = re.sub('"', '\\"', info)
+snip.rv = info
+`: <<<<%s>>>>" % ($1))$0
+endsnippet
+
+snippet print? "what can be printed?" b
+print($1`!p
+snip.rv = complete(t[1], ['info', 'loss'])
+`)$0
+endsnippet
+
+snippet ENV "environment" b
+
+################################################
+# BEGIN $1
+################################################
+
+${2:${VISUAL}}
+
+################################################
+# END $1
+################################################
+endsnippet
+
+context "has_package('torch')"
+snippet class(nn) "class template for Neural Network" b
+class $1(nn.Module):
+    def __init__(self, $2):
+		'''
+		Args:
+			`!p
+snip.rv = ("\n" + " " * 12).join(["%s: " % x.strip() for x in t[2].split(",")])
+`
+		'''
+        super($1, self).__init__()
+		${3:pass}
+
+    def forward(self, $4):
+		'''
+		Args:
+			`!p
+snip.rv = ("\n" + " " * 12).join(["%s: " % x.strip() for x in t[4].split(",")])
+`
+		'''
+		${5:pass}
+endsnippet
