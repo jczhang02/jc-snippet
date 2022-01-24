@@ -1,4 +1,4 @@
-# command! RefreshLineNumber call snip_util#RefreshLineNumber()
+" command! RefreshLineNumber call snip_util#RefreshLineNumber()
 
 if !has("python") && !has("python3")
    finish
