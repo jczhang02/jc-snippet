@@ -578,65 +578,6 @@ snip.rv = expression
 `});$0
 endsnippet
 
-snippet define "definition" b
-\begin{definition}[$1]
-	$0
-\end{definition}
-endsnippet
-
-snippet lemma "lemma" b
-\begin{lemma}
-	$0
-\end{lemma}
-endsnippet
-
-snippet problem "problem" b
-\begin{problem}
-	$0
-\end{problem}
-endsnippet
-
-snippet remark "remark" b
-\begin{remark}
-	$0
-\end{remark}
-endsnippet
-
-snippet examp "exampblock" b
-\begin{testexample}
-	$0
-\end{testexample}
-endsnippet
-
-snippet prop "prop" b
-\begin{proposition}
-	$0
-\end{proposition}
-endsnippet
-
-snippet theorem "theorem" b
-\begin{theorem}
-	$0
-\end{theorem}
-endsnippet
-
-snippet coroll "corollary" b
-\begin{corollary}
-	$0
-\end{corollary}
-endsnippet
-
-snippet colorblue "color blue" b
-\usepackage{xcolor}
-
-\makeatletter
-\newcommand{\globalcolor}[1]{%
-  \color{#1}\global\let\default@color\current@color
-}
-\makeatother
-
-\AtBeginDocument{\globalcolor{blue}}
-endsnippet
 
 snippet template? "What kind of template" b
 template($1`!p
