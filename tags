@@ -1,0 +1,19 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/jczhang/Documents/jc-snippet/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	/p5.9.20210905.0/
+Development	README.md	/^## Development$/;"	s	chapter:zyt-snippet
+LaTeX snippet depends on vimtex	README.md	/^## LaTeX snippet depends on vimtex$/;"	s	chapter:zyt-snippet
+first_p1_not_p2	pythonx/snippet_helpers.py	/^def first_p1_not_p2(line, p1, p2):$/;"	f
+generate_matrix_element	pythonx/snippet_helpers.py	/^def generate_matrix_element(i, j, row, column, virtual_row, virtual_column, ht, vt):$/;"	f
+helper function	README.md	/^## helper function$/;"	s	chapter:zyt-snippet
+last_p1_not_p2	pythonx/snippet_helpers.py	/^def last_p1_not_p2(line, p1, p2):$/;"	f
+snip_util#RefreshLineNumber	autoload/snip_util.vim	/^function! snip_util#RefreshLineNumber() abort$/;"	f
+zyt-snippet	README.md	/^# zyt-snippet$/;"	c
