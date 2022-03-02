@@ -388,13 +388,13 @@ endsnippet
 #  , \\
 #  \end{aligned}
 #  \] .
-#  , \\  
+#  , \\
 #		 .	 \end{aligned}
 #		. \] .
-#  ,	 
+#  ,
 #		 .	 \end{aligned}
 #		. \] .
-#  
+#
 #  ,	.		\end{aligned}
 #		. \],
 # snippet "([,.]?)\s*(\\\\)?(\n?)\s*[,.]?\s*(\\end{aligned})(\n?)\s*[,.]?\s*(\\])\s*([,.])" "align comma" irmA
@@ -457,22 +457,22 @@ endsnippet
 priority 100
 context math()
 snippet ... "cdots" iA
-\cdots 
+\cdots
 endsnippet
 # +... -> , \cdots
 # -  ... -> , \cdots
 # add a space if there already is one.
 priority 101
 snippet "(?<=[-+])\s*\.\.\." "smart cdots" irA
- \cdots 
+ \cdots
 endsnippet
-# It seems that \ldots is only used when , ..., 
+# It seems that \ldots is only used when , ...,
 # ,... -> , \ldots
 # ,  ... -> , \ldots
 priority 101
 context math()
 snippet "(?<=[,;])(\s*)\.\.\." "smart ldots" irA
- \ldots 
+ \ldots
 endsnippet
 
 
@@ -555,7 +555,7 @@ snippet == "equals" iA
 endsnippet
 
 snippet != "equals" iA
-\neq 
+\neq
 endsnippet
 
 context "math()"
@@ -704,11 +704,11 @@ snippet taylor "taylor" w
 endsnippet
 
 snippet lim "limit" w
-\lim_{${1:n} \to ${2:\infty}} 
+\lim_{${1:n} \to ${2:\infty}}
 endsnippet
 
 snippet limsup "limsup" w
-\limsup_{${1:n} \to ${2:\infty}} 
+\limsup_{${1:n} \to ${2:\infty}}
 endsnippet
 
 snippet prod "product" w
@@ -720,7 +720,7 @@ snippet part "d/dx" w
 endsnippet
 
 snippet ∂ "\partial" iA
-\partial 
+\partial
 endsnippet
 
 snippet diff "d/dx" w
@@ -813,11 +813,11 @@ else:
 endsnippet
 
 snippet ooo "\infty" iA
-\infty 
+\infty
 endsnippet
 
 snippet ∞ "\infty" iA
-\infty 
+\infty
 endsnippet
 
 snippet rij "mrij" i
@@ -825,19 +825,19 @@ snippet rij "mrij" i
 endsnippet
 
 snippet <= "leq" iA
-\leq 
+\leq
 endsnippet
 
 snippet ≤ "leq" iA
-\leq 
+\leq
 endsnippet
 
 snippet >= "geq" iA
-\geq 
+\geq
 endsnippet
 
 snippet ≥ "geq" i
-\geq 
+\geq
 endsnippet
 
 
@@ -846,12 +846,12 @@ endsnippet
 # ## end with space so you need option "r" to enable regex
 context "math()"
 snippet "for " "for and for all text box" riA
-\text{ for } 
+\text{ for }
 endsnippet
 
 context "math()"
 snippet "\\text{ for }\s*all" "for and for all text box" rwA
-\text{ for all } 
+\text{ for all }
 endsnippet
 
 priority 100
@@ -863,12 +863,12 @@ endsnippet
 priority 101
 context "math()"
 snippet "(?<=,)\s*(forall|AA)" "forall" riA
-\quad\forall 
+\quad\forall
 endsnippet
 
 context "math()"
 snippet "for all" "forall" iA
-\text{ for all }  
+\text{ for all }
 endsnippet
 # END for and for all
 
@@ -953,22 +953,22 @@ endsnippet
 
 context "math()"
 snippet "(?<!\\)nabla" "nabla" irA
-\nabla 
+\nabla
 endsnippet
 
 context "math()"
 snippet "(?<!\\)grad" "nabla" irA
-\nabla 
+\nabla
 endsnippet
 
 context "math()"
 snippet xx "cross" iA
-\times 
+\times
 endsnippet
 
 context "math()"
 snippet × "cross" i
-\times 
+\times
 endsnippet
 
 priority 100
@@ -1032,23 +1032,23 @@ endsnippet
 priority 100
 context "math()"
 snippet -> "to" iA
-\to 
+\to
 endsnippet
 
 context "math()"
 snippet → "to" iA
-\to 
+\to
 endsnippet
 
 priority 200
 context "math()"
 snippet <-> "leftrightarrow" iA
-\Leftrightarrow 
+\Leftrightarrow
 endsnippet
 
 context "math()"
 snippet !> "mapsto" iA
-\mapsto 
+\mapsto
 endsnippet
 
 context "math()"
@@ -1079,7 +1079,7 @@ endsnippet
 
 context "math()"
 snippet ~~ "~" iA
-\sim 
+\sim
 endsnippet
 
 context "math()"
@@ -1089,27 +1089,27 @@ endsnippet
 
 context "math()"
 snippet || "mid" iA
- \mid 
+ \mid
 endsnippet
 
 
 context "math()"
 snippet cc "subset" bA
-\subseteq 
+\subseteq
 endsnippet
 
 snippet notin "not in " iA
-\not\in 
+\not\in
 endsnippet
 
 context "math()"
 snippet ∈ "in " iA
-\in 
+\in
 endsnippet
 
 context "math()"
 snippet inn "in " iA
-\in 
+\in
 endsnippet
 
 context "math()"
@@ -1119,12 +1119,12 @@ endsnippet
 
 context "math()"
 snippet Nn "cap" iA
-\cap 
+\cap
 endsnippet
 
 context "math()"
 snippet UU "cup" iA
-\cup 
+\cup
 endsnippet
 
 context "math()"
@@ -1165,12 +1165,12 @@ endsnippet
 
 context "math()"
 snippet <! "normal" iA
-\triangleleft 
+\triangleleft
 endsnippet
 
 context "math()"
 snippet <> "hokje" iA
-\diamond 
+\diamond
 endsnippet
 
 
@@ -1354,7 +1354,7 @@ endsnippet
 
 context "math()"
 snippet Cov "Covariance" iA
-\mathrm{Cov} 
+\mathrm{Cov}
 endsnippet
 
 context "math()"
@@ -1539,26 +1539,26 @@ endsnippet
 # It is very useful when there is many single-letter symbols in sentences.
 context "not math()"
 snippet "(?<=\s)([b-zB-HJ-Z])([,.\)]?)\s+" "surround single-letter variable" wrA
-`!p 
+`!p
 # match.group(1) for the alphebet and the number
 # match.group(2) for a possible comma or period or )
 # when there is no ',' or '.' , match.group(2) = ''
-snip.rv='$'+match.group(1)+'$'+match.group(2)` 
+snip.rv='$'+match.group(1)+'$'+match.group(2)`
 endsnippet
 
 # Usage:
-# 2n -> $2n$ 
-# 2N -> $2N$ 
-# 2mn -> $2mn$ 
+# 2n -> $2n$
+# 2N -> $2N$
+# 2mn -> $2mn$
 # character like ',' '.' ')' will not stop this snippet, just like the previous one
 # This snippet in fact only match words starting with numbers and following with all alphabets.
 context "not math()"
 snippet "(?<=\s)([0-9]+[a-zA-Z]+)([,.\)]?)\s+" "surround word starting with number" wrA
-`!p 
+`!p
 # match.group(1) for the words staralphebet and the number
 # match.group(2) for a possible comma or period or )
 # when there is no ',' or '.' , match.group(2) = ''
-snip.rv='$'+match.group(1)+'$'+match.group(2)` 
+snip.rv='$'+match.group(1)+'$'+match.group(2)`
 endsnippet
 
 context "not math()"
@@ -1571,15 +1571,15 @@ snip.rv='$'+match.group(1)+'$'+match.group(2)`
 endsnippet
 
 
-# word .	 -> word. 
+# word .	 -> word.
 # word.  , -> word,
-# $i$ )		 -> $i$) 
+# $i$ )		 -> $i$)
 context "not math()"
 snippet "(?<=[\w\$])[,.]?\s+([,.\)])" "remove ' ' before ',' '.' ')'" iwrA
-`!p snip.rv=match.group(1)` 
+`!p snip.rv=match.group(1)`
 endsnippet
 
-# ( word .	 -> ( word. 
+# ( word .	 -> ( word.
 context "not math()"
 snippet "(?<=\()\s+(\w+)" "remove space after '('" iwrA
 `!p snip.rv=match.group(1)`
